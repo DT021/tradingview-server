@@ -11,11 +11,10 @@ app.use(express.static('public'));
 app.use(bodyParser.json());
 app.use(cors());
 
-
 io.on('connection', (socket) => {
     socket.on('start-socket', (market) => {
         r.connect({
-            host: process.env.RETHINKDB_IP,
+            host: "35.180.0.174",
             port: 28015
         }).then((conn) => {
             r.db(process.env.DB).table(market).changes().run(conn).then((cursor) => {
@@ -37,7 +36,7 @@ io.on('connection', (socket) => {
 console.log("SOCKET LISTENING ON 7001")
 
 r.connect({
-    host: process.env.RETHINKDB_IP,
+    host: "35.180.0.174",
     port: 28015
 }).then((conn) => {
     // r.db(process.env.DB).tableList().run(conn).then((data) => {
@@ -57,7 +56,7 @@ r.connect({
 
 app.get("/api/markets", (req, res) => {
     r.connect({
-        host: process.env.RETHINKDB_IP,
+        host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
         r.db(process.env.DB).table('markets').run(conn).then((cur) => {
@@ -72,7 +71,7 @@ app.post("/api/market", (req, res) => {
     let body = req.body;
     let name = body.name.toLowerCase().replace(/ /g, "_");
     r.connect({
-        host: process.env.RETHINKDB_IP,
+        host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
         r.db(process.env.DB).table('markets').insert({
@@ -93,7 +92,7 @@ app.post("/api/market", (req, res) => {
 app.delete("/api/market", (req, res) => {
     let id = req.query.id;
     r.connect({
-        host: process.env.RETHINKDB_IP,
+        host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
         r.db(process.env.DB).table('markets').get(id).run(conn).then((doc) =>{
@@ -114,7 +113,7 @@ app.get('/api/market', (req, res) => {
     let market = req.query.market;
     console.log(req.query)
     r.connect({
-        host: process.env.RETHINKDB_IP,
+        host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
         r.db(process.env.DB).table(market).limit(150).run(conn).then((data) => {
