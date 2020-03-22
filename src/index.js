@@ -17,7 +17,7 @@ io.on('connection', (socket) => {
             host: "35.180.0.174",
             port: 28015
         }).then((conn) => {
-            r.db(process.env.DB).table(market).changes().run(conn).then((cursor) => {
+            r.db("brain_markets").table(market).changes().run(conn).then((cursor) => {
                 cursor.each((err, row) => {
                     socket.emit('chart-data', row.new_val)
                     if(+row.new_val.buy == 0.99){
@@ -39,10 +39,10 @@ r.connect({
     host: "35.180.0.174",
     port: 28015
 }).then((conn) => {
-    // r.db(process.env.DB).tableList().run(conn).then((data) => {
+    // r.db("brain_markets").tableList().run(conn).then((data) => {
     //     console.log(data);  
     // })
-    // r.db(process.env.DB).table('eur_usd').run(conn).then((data) => {
+    // r.db("brain_markets").table('eur_usd').run(conn).then((data) => {
     //     data.toArray((err, rows) => {
     //         console.log(rows)
     //     })
@@ -59,7 +59,7 @@ app.get("/api/markets", (req, res) => {
         host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
-        r.db(process.env.DB).table('markets').run(conn).then((cur) => {
+        r.db("brain_markets").table('markets').run(conn).then((cur) => {
             cur.toArray().then((data) => {
                 res.send(data)
             })
@@ -74,11 +74,11 @@ app.post("/api/market", (req, res) => {
         host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
-        r.db(process.env.DB).table('markets').insert({
+        r.db("brain_markets").table('markets').insert({
             name: name,
             link: body.link
         }).run(conn).then(() => {
-            r.db(process.env.DB).tableCreate(name).run(conn)
+            r.db("brain_markets").tableCreate(name).run(conn)
             .then((data) => {
                 res.send('Success')
             })
@@ -95,13 +95,13 @@ app.delete("/api/market", (req, res) => {
         host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
-        r.db(process.env.DB).table('markets').get(id).run(conn).then((doc) =>{
-            r.db(process.env.DB).tableDrop(doc.name).run(conn)
+        r.db("brain_markets").table('markets').get(id).run(conn).then((doc) =>{
+            r.db("brain_markets").tableDrop(doc.name).run(conn)
             .catch((e) => {
                 console.log(e)
             })
             .then((data) => {
-                r.db(process.env.DB).table('markets').get(id).delete().run(conn).then((data) => {
+                r.db("brain_markets").table('markets').get(id).delete().run(conn).then((data) => {
                     res.send('Deleted Successfully')
                 })
             })
@@ -116,7 +116,7 @@ app.get('/api/market', (req, res) => {
         host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
-        r.db(process.env.DB).table(market).limit(150).run(conn).then((data) => {
+        r.db("brain_markets").table(market).limit(150).run(conn).then((data) => {
             data.toArray().then((data) => {
                 res.send(data)
             })
