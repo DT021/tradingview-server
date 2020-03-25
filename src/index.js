@@ -17,13 +17,13 @@ io.on('connection', (socket) => {
             host: "35.180.0.174",
             port: 28015
         }).then((conn) => {
-            r.db("brain_markets").table(market).changes().run(conn).then((cursor) => {
+            r.db("brain_markets").table(`${market}_signals`).changes().run(conn).then((cursor) => {
                 cursor.each((err, row) => {
-                    socket.emit('chart-data', row.new_val)
-                    if(+row.new_val.buy == 0.99){
+                    // socket.emit('chart-data', row.new_val)
+                    if(row.new_val.type == 'buy'){
                         socket.emit('buy-signal', row.new_val);
                     }
-                    if(+row.new_val.sell == 0.1){
+                    if(row.new_val.type == 'sell'){
                         socket.emit('sell-signal', row.new_val)
                     }
                 })
@@ -39,19 +39,32 @@ r.connect({
     host: "35.180.0.174",
     port: 28015
 }).then((conn) => {
+    // r.db('brain_markets').table('eur_usd_signals').count().run(conn).then((c) => {
+    //     console.log(c)
+    // })
+    // r.db('brain_markets').table('eur_usd_signals').delete().run(conn).then((c) => {
+    //     console.log(c)
+    // })
+    // r.db('brain_markets').table('eur_usd').delete().run(conn)
+    // r.db('brain_markets').table('eur_aud').delete().run(conn)
     // r.db("brain_markets").tableList().run(conn).then((data) => {
     //     console.log(data);  
     // })
-    // r.db("brain_markets").table('eur_usd').run(conn).then((data) => {
+    // r.db("brain_markets").table('eur_usd').orderBy({index: r.desc('time')}).limit(5).run(conn).then((data) => {
     //     data.toArray((err, rows) => {
     //         console.log(rows)
     //     })
     // })
-    r.db('rethinkdb').table('users').run(conn).then((data) => {
-        data.toArray().then((d) => {
-            console.log(d)
-        })
-    })
+    // r.db("brain_markets").table('markets').run(conn).then((data) => {
+    //     data.toArray((err, rows) => {
+    //         console.log(rows)
+    //     })
+    // })
+    // r.db('rethinkdb').table('users').run(conn).then((data) => {
+    //     data.toArray().then((d) => {
+    //         console.log(d)
+    //     })
+    // })
 })
 
 app.get("/api/markets", (req, res) => {
@@ -69,7 +82,8 @@ app.get("/api/markets", (req, res) => {
 
 app.post("/api/market", (req, res) => {
     let body = req.body;
-    let name = body.name.toLowerCase().replace(/ /g, "_");
+    let name = body.name.toLowerCase().replace(/[/ ]/g, "_");
+    console.log(name)
     r.connect({
         host: "35.180.0.174",
         port: 28015
@@ -78,12 +92,17 @@ app.post("/api/market", (req, res) => {
             name: name,
             link: body.link
         }).run(conn).then(() => {
-            r.db("brain_markets").tableCreate(name).run(conn)
-            .then((data) => {
-                res.send('Success')
+            Promise.all([
+                r.db("brain_markets").tableCreate(name).run(conn),
+                r.db("brain_markets").tableCreate(`${name}_signals`).run(conn)
+            ]).then(() => {
+                r.db('brain_markets').table(name).indexCreate('time').run(conn)
+                r.db('brain_markets').table(`${name}_signals`).indexCreate('time').run(conn)
+                res.send('Added Successfully')
             })
+           
             .catch((e) => {
-                res.status(500).send(e)
+                console.log(e)
             })
         })
     })
@@ -97,6 +116,7 @@ app.delete("/api/market", (req, res) => {
     }).then((conn) => {
         r.db("brain_markets").table('markets').get(id).run(conn).then((doc) =>{
             r.db("brain_markets").tableDrop(doc.name).run(conn)
+            r.db("brain_markets").tableDrop(`${doc.name}_signals`).run(conn)
             .catch((e) => {
                 console.log(e)
             })
@@ -116,7 +136,7 @@ app.get('/api/market', (req, res) => {
         host: "35.180.0.174",
         port: 28015
     }).then((conn) => {
-        r.db("brain_markets").table(market).limit(150).run(conn).then((data) => {
+        r.db("brain_markets").table(market).run(conn).then((data) => {
             data.toArray().then((data) => {
                 res.send(data)
             })
@@ -124,7 +144,20 @@ app.get('/api/market', (req, res) => {
     })
 })
 
-
+app.get('/api/signals', (req, res) => {
+    let market = req.query.market;
+    r.connect({
+        host: "35.180.0.174",
+        port: 28015
+    }).then((conn) => {
+        r.db("brain_markets").table(`${market}_signals`).distinct().limit(200).run(conn).then((data) => {
+            data.toArray().then((data) => {
+                console.log(data)
+                res.send(data)
+            })
+        })
+    })
+})
 
 
 app.get("/", (req, res) => {
