@@ -1,6 +1,8 @@
 const express = require("express")
 const app = express()
 const r = require("rethinkdb");
+const fs = require('fs');
+const https = require('https');
 const dotenv = require('dotenv').config();
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -17,19 +19,20 @@ io.on('connection', (socket) => {
             host: "35.180.0.174",
             port: 28015
         }).then((conn) => {
-            r.db("brain_markets").table(`${market}_signals`).changes().run(conn).then((cursor) => {
-                cursor.each((err, row) => {
-                    // socket.emit('chart-data', row.new_val)
-                    if(row.new_val.type == 'buy'){
-                        socket.emit('buy-signal', row.new_val);
-                    }
-                    if(row.new_val.type == 'sell'){
-                        socket.emit('sell-signal', row.new_val)
-                    }
-                })
-            }).catch((e) => {
-                console.log("Table")
-            })
+            // r.db("brain_markets").table(`${market}_signals`).changes().run(conn).then((cursor) => {
+            //     cursor.each((err, row) => {
+            //         console.log(row)
+            //         // socket.emit('chart-data', row.new_val)
+            //         if(row.new_val.type == 'buy'){
+            //             socket.emit('buy-signal', row.new_val);
+            //         }
+            //         if(row.new_val.type == 'sell'){
+            //             socket.emit('sell-signal', row.new_val)
+            //         }
+            //     })
+            // }).catch((e) => {
+            //     console.log("Table")
+            // })
         })
     })
 })
@@ -39,32 +42,11 @@ r.connect({
     host: "35.180.0.174",
     port: 28015
 }).then((conn) => {
-    // r.db('brain_markets').table('eur_usd_signals').count().run(conn).then((c) => {
-    //     console.log(c)
-    // })
-    // r.db('brain_markets').table('eur_usd_signals').delete().run(conn).then((c) => {
-    //     console.log(c)
-    // })
-    // r.db('brain_markets').table('eur_usd').delete().run(conn)
-    // r.db('brain_markets').table('eur_aud').delete().run(conn)
-    // r.db("brain_markets").tableList().run(conn).then((data) => {
-    //     console.log(data);  
-    // })
-    // r.db("brain_markets").table('eur_usd').orderBy({index: r.desc('time')}).limit(5).run(conn).then((data) => {
-    //     data.toArray((err, rows) => {
-    //         console.log(rows)
-    //     })
-    // })
-    // r.db("brain_markets").table('markets').run(conn).then((data) => {
-    //     data.toArray((err, rows) => {
-    //         console.log(rows)
-    //     })
-    // })
-    // r.db('rethinkdb').table('users').run(conn).then((data) => {
-    //     data.toArray().then((d) => {
-    //         console.log(d)
-    //     })
-    // })
+    r.db('brain_markets').table('smort_chart_signals').run(conn).then((cur) => {
+        cur.toArray().then((data) => {
+            console.log(data)
+        })
+    })
 })
 
 app.get("/api/markets", (req, res) => {
@@ -93,11 +75,13 @@ app.post("/api/market", (req, res) => {
             link: body.link
         }).run(conn).then(() => {
             Promise.all([
-                r.db("brain_markets").tableCreate(name).run(conn),
-                r.db("brain_markets").tableCreate(`${name}_signals`).run(conn)
+                r.db("brain_markets").tableCreate(name, {
+                    primary_key: 'time'
+                }).run(conn),
+                r.db("brain_markets").tableCreate(`${name}_signals`, {
+                    primary_key: 'time'
+                }).run(conn)
             ]).then(() => {
-                r.db('brain_markets').table(name).indexCreate('time').run(conn)
-                r.db('brain_markets').table(`${name}_signals`).indexCreate('time').run(conn)
                 res.send('Added Successfully')
             })
            
@@ -131,7 +115,6 @@ app.delete("/api/market", (req, res) => {
 
 app.get('/api/market', (req, res) => {
     let market = req.query.market;
-    console.log(req.query)
     r.connect({
         host: "35.180.0.174",
         port: 28015
@@ -152,7 +135,6 @@ app.get('/api/signals', (req, res) => {
     }).then((conn) => {
         r.db("brain_markets").table(`${market}_signals`).distinct().limit(200).run(conn).then((data) => {
             data.toArray().then((data) => {
-                console.log(data)
                 res.send(data)
             })
         })
@@ -164,6 +146,14 @@ app.get("/", (req, res) => {
     res.sendFile(__dirname + '/public/index.html')
 })
 
-app.listen(7000, () => {
+var key = fs.readFileSync(__dirname + '/sslcert/selfsigned.key');
+var cert = fs.readFileSync(__dirname + '/sslcert/selfsigned.crt');
+var options = {
+  key: key,
+  cert: cert
+};
+
+var server = https.createServer(options, app);
+server.listen(7000, () => {
     console.log(`Server started on Port 7000`)
 })
