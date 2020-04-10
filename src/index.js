@@ -2,11 +2,11 @@ const express = require("express")
 const app = express()
 const r = require("rethinkdb");
 const dotenv = require('dotenv').config();
-const https = require('https');
 const fs = require('fs');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const io = require('socket.io')(7001, {
+var server = require('http').Server(app);
+var io = require('socket.io')(server, {
     pingTimeout: 60000
 });
 
@@ -21,10 +21,9 @@ io.on('connection', (socket) => {
         }).then((conn) => {
             r.db("brain_markets").table(`${market}_signals`).changes().run(conn).then((cursor) => {
                 cursor.each((err, row) => {
-                    if(!row.new_val){
-                        cursor.close();
+                    if(row.new_val){
+                        socket.emit('signal', row.new_val)
                     }
-                    socket.emit('signal', row.new_val)
                 }).catch(() => {
                     console.log("Table Removed.")    
                 })
@@ -34,18 +33,6 @@ io.on('connection', (socket) => {
         })
     })
 })
-console.log("SOCKET LISTENING ON 7001")
-
-// r.connect({
-//     host: "34.220.23.203",
-//     port: 28015
-// }).then((conn) => {
-//     r.db('brain_markets').table('smort_chart_signals').run(conn).then((cur) => {
-//         cur.toArray().then((data) => {
-//             console.log(data)
-//         })
-//     })
-// })
 
 app.get("/api/markets", (req, res) => {
     r.connect({
@@ -140,12 +127,8 @@ app.get('/api/signals', (req, res) => {
 })
 
 
-// serve the API with signed certificate on 443 (SSL/HTTPS) port
-const httpsServer = https.createServer({
-  key: fs.readFileSync(`${__dirname}/sslcert/selfsigned.key`),
-  cert: fs.readFileSync(`${__dirname}/sslcert/selfsigned.crt`),
-}, app);
 
-httpsServer.listen(7000, () => {
+
+server.listen(process.env.PORT, () => {
     console.log(`Server started on Port 7000`)
 })
